@@ -1,6 +1,6 @@
 package version
 
-// Default build-time variable.
+// Default build-time variables
 // These values are overridden via ldflags
 var (
 	PlatformName = ""
