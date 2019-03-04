@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# Build static binary for the host OS/ARCH
+#
+
+set -eu -o pipefail
+
+# VARIABLES
+
+set -eu
+
+PLATFORM=${PLATFORM:-}
+VERSION=${VERSION:-"unknown-version"}
+GITCOMMIT=${GITCOMMIT:-$(git rev-parse --short HEAD 2> /dev/null || true)}
+BUILDTIME=${BUILDTIME:-$(date --utc --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')}
+
+PLATFORM_LDFLAGS=
+if test -n "${PLATFORM}"; then
+	PLATFORM_LDFLAGS="-X \"github.com/scott-haines/sinject/cli/version.PlatformName=${PLATFORM}\""
+fi
+
+export LDFLAGS="\
+    -w \
+    ${PLATFORM_LDFLAGS} \
+    -X \"github.com/scott-haines/sinject/cli/version.GitCommit=${GITCOMMIT}\" \
+    -X \"github.com/scott-haines/sinject/cli/version.BuildTime=${BUILDTIME}\" \
+    -X \"github.com/scott-haines/sinject/cli/version.Version=${VERSION}\" \
+    ${LDFLAGS:-} \
+"
+
+GOOS="${GOOS:-$(go env GOHOSTOS)}"
+GOARCH="${GOARCH:-$(go env GOHOSTARCH)}"
+export TARGET="build/sinject-$GOOS-$GOARCH"
+export SOURCE="github.com/scott-haines/sinject/cmd/sinject"
+
+# BUILD SCRIPT
+echo "Building statically linked $TARGET"
+export CGO_ENABLED=0
+go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
+
+ln -sf "$(basename "${TARGET}")" build/sinject
