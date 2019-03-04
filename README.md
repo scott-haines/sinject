@@ -1,6 +1,6 @@
 # sinject
 Secrets Injector and utility for containerized solutions.
-
+```bash
 NAME
     inject - secrets injection utility
 
@@ -53,3 +53,4 @@ EXAMPLES
     inject /opt/my_app/config/config.yml /opt/my_app/config/options.xml
 
     ls /opt/my_app/config_files/ | inject
+    ```
