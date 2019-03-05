@@ -1,0 +1,14 @@
+.\" Manpage for sinject
+.\" Contact https://github.com/scott-haines/sinject
+.TH INJECT 1 "2019-02-27" "1.0" "sinject"
+.SH NAME
+sinject - secrets injection utility
+.SH SYNOPSIS
+sinject [OPTIONS] COMMAND [ARG...]
+
+.SH DESCRIPTION
+is a utility for injecting secrets into configuration files.
+
+.SH OPTIONS
+
+.SH EXAMPLES
