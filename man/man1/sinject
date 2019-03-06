@@ -9,6 +9,9 @@ sinject [OPTIONS] COMMAND [ARG...]
 .SH DESCRIPTION
 is a utility for injecting secrets into configuration files.
 
+.SH COMMANDS
+use sinject --help or sinject help to view a list of available commands
+
 .SH OPTIONS
 
 .SH EXAMPLES
