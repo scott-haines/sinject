@@ -95,12 +95,7 @@ $ sinject [COMMAND] --help
 
 # Examples
 ```bash
-<<<<<<< HEAD
 $ sinject inject --file /opt/app1/myConfig.yml
 
 $ sinject inject --file exampleConfig.txt --secrets-path $(pwd)/secrets --pre-scan-mode none
 ```
-=======
-sinject inject --file /opt/app1/myConfig.yml
-```
->>>>>>> 3ad8c53de60e115cadcebd8b8beeaf1ceeb5f4aa
