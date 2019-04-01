@@ -36,7 +36,7 @@ scrape_configs:
 
 Be warned though - Environment variables passed through to containers can be easily discovered:
 ```bash
-docker run --rm -d -e USERNAME=userName -e PASSWORD=mYSp3ci4lPa55w0rd nginx
+docker run --rm -d -e USER_NAME=userName -e PASSWORD=mYSp3ci4lPa55w0rd nginx
 docker inspect <containerName>
 
 "Env": [
