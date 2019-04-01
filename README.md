@@ -57,14 +57,45 @@ This supports several ways of mounting secrets into a container:
 
 Sinject assumes that the secret -> token replacement is by name.  So the name of the secret must match exactly the label of the token in the config file.
 
-# Help
-```bash
-sinject --help
-
-sinject [COMMAND] --help
+Consider the following config file:
+```yaml
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+    - targets: ['myServer:18245']
+    metrics_path: '/prometheus/metrics'
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    basic_auth:
+      username: '%%%USER_NAME%%%'
+      password: '%%%PASSWORD%%%'
 ```
 
-# Example
+sinject will look for secrets named USER_NAME or USER_NAME.secret and PASSWORD or PASSWORD.secret and replace the tokens with the values of those secrets.
+
+By default, it will look in `/run/secrets` but this can be overridden with the flag `--secrets-path`
+By default, the token is assumed to be `%%%` but this be overridden with the flag `--token`
+
+# Pre Scan Mode
+sinject supports 4 modes of file pre scanning with the flag `--pre-scan-mode`:
+* none - sinject will not perform pre-scanning.
+* secret - sinject will output errors if there is no secret for a discovered token.
+* token - sinject will output errors if a secret is present but there is no token.
+* full - both secret + token.
+
+The default pre scan mode is 'secret'
+
+# Help
 ```bash
-sinject inject --file /opt/app1/myConfig.yml
+$ sinject --help
+
+$ sinject [COMMAND] --help
+```
+
+# Examples
+```bash
+$ sinject inject --file /opt/app1/myConfig.yml
+
+$ sinject inject --file exampleConfig.txt --secrets-path $(pwd)/secrets --pre-scan-mode none
 ```
