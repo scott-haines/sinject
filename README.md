@@ -40,7 +40,7 @@ docker run --rm -d -e USER_NAME=userName -e PASSWORD=mYSp3ci4lPa55w0rd nginx
 docker inspect <containerName>
 
 "Env": [
-        "USERNAME=userName",
+        "USER_NAME=userName",
         "PASSWORD=mYSp3ci4lPa55w0rd",
     ],
 ```
