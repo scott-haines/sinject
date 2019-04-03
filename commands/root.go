@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jcelliott/lumber"
-	homedir "github.com/mitchellh/go-homedir"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 
 	"github.com/scott-haines/sinject/version"
 )
 
 var cfgFile string
+var log = logrus.New()
+var verbosity string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -21,20 +21,46 @@ var rootCmd = &cobra.Command{
 	Long:                  ``,
 	Version:               fmt.Sprintf("%s, build %s", version.Version, version.GitCommit),
 	DisableFlagsInUseLine: false,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		verbosity, _ := cmd.Flags().GetString("verbosity")
+		switch {
+		case verbosity == "TRACE":
+			log.SetLevel(logrus.TraceLevel)
+		case verbosity == "DEBUG":
+			log.SetLevel(logrus.DebugLevel)
+		case verbosity == "INFO":
+			log.SetLevel(logrus.InfoLevel)
+		case verbosity == "WARN":
+			log.SetLevel(logrus.WarnLevel)
+		case verbosity == "ERROR":
+			log.SetLevel(logrus.ErrorLevel)
+		case verbosity == "FATAL":
+			log.SetLevel(logrus.FatalLevel)
+		case verbosity == "PANIC":
+			log.SetLevel(logrus.PanicLevel)
+		default:
+			log.SetLevel(logrus.InfoLevel)
+		}
+
+		log.WithField("verbosity", verbosity).Trace("Log Level Initialized.")
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		log.Trace("Execution of default command.")
+		log.Trace("Printing help as default command is NOOP.")
+		cmd.Help()
+		os.Exit(0)
+	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.WithError(err).Fatal("An error occurred when executing the root command.")
 	}
 }
 
 func init() {
-	lumber.Trace("Initializing the root command.")
-
 	rootCmd.SetUsageTemplate(`Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
   {{.CommandPath}} [OPTIONS] COMMAND [ARG...]{{end}}{{if gt (len .Aliases) 0}}
@@ -60,45 +86,15 @@ Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
 `)
 
-	// set config defaults
-	cobra.OnInitialize(initConfig)
-	verbosity := "INFO"
-
-	// cli flags
-	rootCmd.PersistentFlags().String("verbosity", verbosity, "Verbosity level of messages (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)")
-
-	// bind config to cli flags
-	viper.BindPFlag("verbosity", rootCmd.PersistentFlags().Lookup("verbosity"))
+	// global flags
+	rootCmd.PersistentFlags().StringVarP(&verbosity, "verbosity", "", "INFO", "Verbosity level of messages (TRACE, DEBUG, INFO, WARN, ERROR, FATAL, PANIC)")
 
 	// cli-only flags
 	rootCmd.Flags().Bool("version", false, "Print version information and quit")
 
 	// commands
 	rootCmd.AddCommand(injectCmd)
-}
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		// Search config in home directory with name ".sinject" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".sinject")
-	}
-
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
-	}
+	// logging
+	log.Out = os.Stderr
 }

@@ -9,14 +9,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/jcelliott/lumber"
-
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 var (
 	injectCmd = &cobra.Command{
-		Use:   "inject [OPTIONS]  FILE [FILE...]",
+		Use:   "inject [OPTIONS]",
 		Short: "Inject secrets into target file",
 		Run:   inject,
 	}
@@ -32,7 +31,8 @@ type secretData struct {
 }
 
 func init() {
-	injectCmd.Flags().StringVar(&file, "file", "", "The file to inject secrets into")
+	injectCmd.Flags().StringVar(&file, "file", "", "The file to inject secrets into (required)")
+	injectCmd.MarkFlagRequired("file")
 	injectCmd.Flags().StringVar(&prescanmode, "pre-scan-mode", "secret", "Sets the pre-scan mode.\n\nnone - sinject will not perform pre-scanning.\nsecret - sinject will output errors if there is no secret for a discovered token.\ntoken - sinject will output errors if a secret is present but there is no token.\nfull - both secret + token\n\n")
 	injectCmd.Flags().StringVar(&secretspath, "secrets-path", "/run/secrets", "The path to the directory containing the secrets.")
 	injectCmd.Flags().StringVar(&token, "token", "%%%", "Sets the token wrapper.")
@@ -41,7 +41,7 @@ func init() {
 func getTokensInFile(file string, token string) []string {
 	fileContents, err := ioutil.ReadFile(file)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.Fatal(err)
 	}
 
 	re := regexp.MustCompile(fmt.Sprintf("%s(.*)%s", token, token))
@@ -49,7 +49,7 @@ func getTokensInFile(file string, token string) []string {
 
 	for _, element := range submatchall {
 		element = strings.Trim(element, token)
-		lumber.Trace(element)
+		log.WithFields(logrus.Fields{"token": element, "file": file}).Debug("Token discovered.")
 	}
 
 	return submatchall
@@ -58,7 +58,7 @@ func getTokensInFile(file string, token string) []string {
 func getSecrets(secretspath string) []secretData {
 	files, err := ioutil.ReadDir(secretspath)
 	if err != nil {
-
+		log.Fatal(err)
 	}
 
 	secrets := []secretData{}
@@ -71,6 +71,7 @@ func getSecrets(secretspath string) []secretData {
 			SecretValue: string(fileContents),
 		}
 
+		log.WithFields(logrus.Fields{"secretName": d.SecretName, "file": fileName}).Debug("Secret discovered.")
 		secrets = append(secrets, d)
 	}
 
@@ -79,18 +80,20 @@ func getSecrets(secretspath string) []secretData {
 
 func prescanSecret(tokens []string, secrets []secretData) bool {
 	// Output errors if there is no secret for a discovered token
+	log.Trace("Executing prescanSecret")
 	anyMissing := false
 	for _, fulltoken := range tokens {
 		found := false
 
 		for _, secret := range secrets {
 			if strings.Trim(fulltoken, token) == secret.SecretName {
+				log.WithFields(logrus.Fields{"secret": secret.SecretName, "token": fulltoken}).Debug("token -> secret mapped.")
 				found = true
 			}
 		}
 
 		if found == false {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("Missing secret for token: %s", fulltoken))
+			log.WithField("token", fulltoken).Error("Missing secret for discovered token")
 			anyMissing = true
 		}
 	}
@@ -100,18 +103,20 @@ func prescanSecret(tokens []string, secrets []secretData) bool {
 
 func prescanToken(tokens []string, secrets []secretData) bool {
 	// Output errors if there is no token for a discovered secret
+	log.Trace("Executing prescanToken")
 	anyMissing := false
 	for _, secret := range secrets {
 		found := false
 
 		for _, fulltoken := range tokens {
 			if strings.Trim(fulltoken, token) == secret.SecretName {
+				log.WithFields(logrus.Fields{"secret": secret.SecretName, "token": fulltoken}).Debug("secret -> token mapped.")
 				found = true
 			}
 		}
 
 		if found == false {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("Missing token for secret: %s", secret.SecretName))
+			log.WithField("secret", secret.SecretName).Error("Missing token for discovered secret")
 			anyMissing = true
 		}
 	}
@@ -122,7 +127,7 @@ func prescanToken(tokens []string, secrets []secretData) bool {
 func replaceTokens(tokens []string, secrets []secretData) {
 	input, err := ioutil.ReadFile(file)
 	if err != nil {
-		fmt.Println(err)
+		log.WithError(err).Fatal("An error occurred while attempting to read the file.")
 	}
 	buffer := input
 
@@ -130,28 +135,31 @@ func replaceTokens(tokens []string, secrets []secretData) {
 		// Find the matching secret and replace it in the buffer
 		for _, secret := range secrets {
 			if strings.Trim(fulltoken, token) == secret.SecretName {
+				log.WithFields(logrus.Fields{"secretName": secret.SecretName, "file": file}).Info("Injecting secret in file.")
 				buffer = bytes.Replace(buffer, []byte(fulltoken), []byte(secret.SecretValue), -1)
 			}
 		}
 	}
 
 	if err = ioutil.WriteFile(file, buffer, 0600); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		log.WithError(err).Fatal("An error occurred while attempting to write to the file.")
 	}
 }
 
 func inject(ccmd *cobra.Command, args []string) {
 	switch {
 	case file == "":
-		fmt.Fprintln(os.Stderr, "Missing file - please provide the file to inject secrets into")
-		return
+		log.Error("Missing file.")
+		ccmd.Help()
+		os.Exit(1)
 	}
 
 	if _, err := os.Stat(file); err != nil {
 		if os.IsNotExist(err) {
-			fmt.Fprintln(os.Stderr, fmt.Sprintf("The file %s does not exist", file))
+			log.WithField("file", file).Error("The provided file does not exist.")
+			os.Exit(1)
 		} else {
-			fmt.Fprintln(os.Stderr, "an error has ocurred")
+			log.WithError(err).Fatal("An error ocurred while attempting to check if the file exists.")
 		}
 	}
 
@@ -172,8 +180,7 @@ func inject(ccmd *cobra.Command, args []string) {
 	}
 
 	if failedPrescan {
-		fmt.Fprintln(os.Stderr, "Failed Prescan")
-		os.Exit(1)
+		log.Fatal("Failed Prescan.  Please refer to warning messages.")
 	} else {
 		replaceTokens(tokens, secrets)
 	}

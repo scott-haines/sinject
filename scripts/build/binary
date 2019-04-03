@@ -3,7 +3,7 @@
 # Build static binary for the host OS/ARCH
 #
 
-# set -eu -o pipefail
+set -e
 
 #################################
 # VARIABLES                     #
@@ -34,21 +34,17 @@ GOARCH="${GOARCH:-$(go env GOHOSTARCH)}"
 export TARGET="build/sinject-$GOOS-$GOARCH"
 export SOURCE="github.com/scott-haines/sinject"
 
-
-#################################
-# PRE CLEAN                     #
-#################################
-
-[ -e "./build" ] && \
-    echo "Cleaning up old builds..." && \
-    rm -rf "./build"
-
 #################################
 # BUILD SCRIPT                  #
 #################################
 
-echo "Building statically linked $TARGET"
+echo "Building binary: $TARGET"
 export CGO_ENABLED=0
 go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
 
-ln -sf "$(basename "${TARGET}")" build/sinject
+# Only link the binary if the GOOS being built matches the current OS
+if [ $GOOS = $(go env GOHOSTOS) ]
+then
+    echo "Linking $TARGET to build/sinject"
+    ln -sf "$(basename "${TARGET}")" build/sinject
+fi

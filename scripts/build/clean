@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#
+# Clean the builds directory
+#
+set -e
+
+if [ -e "./build" ] 
+then
+    echo "Cleaning up old builds..."
+    rm -rf "./build"
+fi
