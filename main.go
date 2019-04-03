@@ -1,9 +1,15 @@
 package main
 
 import (
+	"os"
+
 	"github.com/scott-haines/sinject/commands"
 )
 
+// main entry point of the program
 func main() {
-	commands.Execute()
+	err := commands.NewSinjectCommand().Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }

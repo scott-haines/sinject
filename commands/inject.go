@@ -13,29 +13,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	injectCmd = &cobra.Command{
+var file string
+var prescanmode string
+var secretspath string
+var token string
+
+func NewCmdInject() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "inject [OPTIONS]",
 		Short: "Inject secrets into target file",
 		Run:   inject,
 	}
-	file        string
-	prescanmode string
-	secretspath string
-	token       string
-)
+
+	cmd.Flags().StringVar(&file, "file", "", "The file to inject secrets into (required)")
+	cmd.Flags().StringVar(&prescanmode, "pre-scan-mode", "secret", "Sets the pre-scan mode.\n\nnone - sinject will not perform pre-scanning.\nsecret - sinject will output errors if there is no secret for a discovered token.\ntoken - sinject will output errors if a secret is present but there is no token.\nfull - both secret + token\n\n")
+	cmd.Flags().StringVar(&secretspath, "secrets-path", "/run/secrets", "The path to the directory containing the secrets.")
+	cmd.Flags().StringVar(&token, "token", "%%%", "Sets the token wrapper.")
+
+	return cmd
+}
 
 type secretData struct {
 	SecretName  string
 	SecretValue string
-}
-
-func init() {
-	injectCmd.Flags().StringVar(&file, "file", "", "The file to inject secrets into (required)")
-	injectCmd.MarkFlagRequired("file")
-	injectCmd.Flags().StringVar(&prescanmode, "pre-scan-mode", "secret", "Sets the pre-scan mode.\n\nnone - sinject will not perform pre-scanning.\nsecret - sinject will output errors if there is no secret for a discovered token.\ntoken - sinject will output errors if a secret is present but there is no token.\nfull - both secret + token\n\n")
-	injectCmd.Flags().StringVar(&secretspath, "secrets-path", "/run/secrets", "The path to the directory containing the secrets.")
-	injectCmd.Flags().StringVar(&token, "token", "%%%", "Sets the token wrapper.")
 }
 
 func getTokensInFile(file string, token string) []string {
@@ -149,9 +149,7 @@ func replaceTokens(tokens []string, secrets []secretData) {
 func inject(ccmd *cobra.Command, args []string) {
 	switch {
 	case file == "":
-		log.Error("Missing file.")
-		ccmd.Help()
-		os.Exit(1)
+		log.Fatal("Missing required flag --file.")
 	}
 
 	if _, err := os.Stat(file); err != nil {
