@@ -40,6 +40,7 @@ export SOURCE="github.com/scott-haines/sinject"
 
 echo "Building binary: $TARGET"
 export CGO_ENABLED=0
+go get -d ./...
 go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
 
 # Only link the binary if the GOOS being built matches the current OS
