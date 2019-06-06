@@ -42,10 +42,3 @@ echo "Building binary: $TARGET"
 export CGO_ENABLED=0
 go get -d ./...
 go build -o "${TARGET}" --ldflags "${LDFLAGS}" "${SOURCE}"
-
-# Only link the binary if the GOOS being built matches the current OS
-if [ $GOOS = $(go env GOHOSTOS) ]
-then
-    echo "Linking $TARGET to build/sinject"
-    ln -sf "$(basename "${TARGET}")" build/sinject
-fi
