@@ -12,3 +12,7 @@ jobs:
       - checkout
 
       - run: go get -v -t -d ./...
+      - run: make binaries
+      
+      - store_artifacts:
+          path: ./build
