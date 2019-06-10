@@ -1,12 +1,11 @@
 # Golang CircleCI 2.0 configuration file
 #
 # Check https://circleci.com/docs/2.0/language-go/ for more details
-version: 2
+version: 2.1
 jobs:
   build:
     docker:
       - image: circleci/golang:1.9
-
     working_directory: /go/src/github.com/scott-haines/sinject
     steps:
       - checkout
@@ -14,5 +13,35 @@ jobs:
       - run: go get -v -t -d ./...
       - run: make binaries
       
-      - store_artifacts:
-          path: ./build
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build
+
+  publish-github-release:
+    docker:
+      - image: cibuilds/github:0.10
+    steps:
+      - attach_workspace:
+          at: ./build-artifacts
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            pwd
+            ls -als
+
+            cd build-artifacts
+            ls -als
+            exit 0
+            #VERSION=$(my-binary --version)
+            #ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./build/
+
+workflows:
+  version: 2
+
+  build-deploy:
+    jobs:
+      - build
+      - publish-github-release:
+          requires:
+            - build
